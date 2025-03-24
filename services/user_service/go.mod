@@ -1,6 +1,8 @@
-module pkg
+module user_service
 
 go 1.24.1
+
+require github.com/flashhhhh/pkg v0.0.0-20250324102243-d46252e1c4b1
 
 require (
 	github.com/jackc/pgpassfile v1.0.0 // indirect
