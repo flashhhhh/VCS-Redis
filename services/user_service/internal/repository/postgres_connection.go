@@ -11,6 +11,8 @@ var db *gorm.DB
 var lock = &sync.Mutex{}
 
 func NewPostgresConnection() *gorm.DB {
+	env.LoadEnv("config/user.env")
+	
 	if db == nil {
 		lock.Lock()
 		defer lock.Unlock()

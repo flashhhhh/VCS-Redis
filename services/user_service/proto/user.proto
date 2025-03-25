@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+package user;
+
+option go_package = "./pb";
+
+service UserService {
+    rpc CreateUser(CreateUserRequest) returns (EmptyResponse) {}
+    rpc Login(LoginRequest) returns (LoginResponse) {}
+    rpc GetUserByID(IDRequest) returns (UserResponse) {}
+    rpc GetUserByUsername(UsernameRequest) returns (UserResponse) {}
+    rpc GetAllUsers(EmptyRequest) returns (UserArrayResponse) {}
+}
+
+message CreateUserRequest {
+    string username = 1;
+    string password = 2;
+    string name = 3;
+}
+
+message LoginRequest {
+    string username = 1;
+    string password = 2;
+}
+
+message IDRequest {
+    int32 id = 1;
+}
+
+message UsernameRequest {
+    string username = 1;
+}
+
+message EmptyRequest {}
+
+message EmptyResponse {}
+
+message LoginResponse {
+    string token = 1;
+}
+
+message UserResponse {
+    int32 id = 1;
+    string username = 2;
+    string name = 3;
+}
+
+message UserArrayResponse {
+    repeated UserResponse users = 1;
+}
