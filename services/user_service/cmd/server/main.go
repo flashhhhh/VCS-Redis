@@ -1,33 +1,34 @@
-/*
-	Package main is the entry point of the user service.
-*/
-
 package main
 
 import (
-	"fmt"
-	"net"
-
+	"user_service/infrastructure/database"
+	"user_service/infrastructure/grpc"
+	"user_service/infrastructure/redis"
 	"user_service/internal/handler"
-	pb "user_service/pb"
+	"user_service/internal/repository"
+	"user_service/internal/service"
 
 	"github.com/flashhhhh/pkg/env"
-	"google.golang.org/grpc"
 )
 
 func main() {
 	env.LoadEnv("config/user.env")
 
-	lis, err := net.Listen("tcp", env.GetEnv("USER_PORT", ":50051"))
+	dsn := "host=" + env.GetEnv("USER_DB_HOST", "localhost") + " user=" + env.GetEnv("USER_DB_USER", "root") + " password=" + env.GetEnv("USER_DB_PASSWORD", "") + " dbname=" + env.GetEnv("USER_DB_NAME", "user_service") + " port=" + env.GetEnv("USER_DB_PORT", "5432") + " sslmode=disable"
+	db, err := database.ConnectDB(dsn)
 	if err != nil {
 		panic(err)
 	}
 
-	s := grpc.NewServer()
-	pb.RegisterUserServiceServer(s, &handler.Server{})
+	// Initialize Redis client
+	redisAddr := env.GetEnv("REDIS_ADDR", "localhost:6379")
+	redisClient := redis.NewRedisClient(redisAddr)
 
-	fmt.Println("Starting server at " + env.GetEnv("USER_PORT", ":50051"))
-	if err := s.Serve(lis); err != nil {
-		panic(err)
-	}
+	// Initialize the repository, service, and handler
+	userRepo := repository.NewUserRepository(db, redisClient)
+	userService := service.NewUserService(userRepo)
+	userHandler := handler.NewUserHandler(userService)
+
+	// Start the gRPC server
+	grpc.StartGRPCServer(userHandler)
 }

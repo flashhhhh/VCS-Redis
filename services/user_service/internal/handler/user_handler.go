@@ -3,86 +3,73 @@ package handler
 import (
 	"context"
 	"user_service/internal/service"
-	pb "user_service/pb"
+	"user_service/pb"
 )
 
-type Server struct {
+type UserHandler struct {
 	pb.UnimplementedUserServiceServer
+	service service.UserService
 }
 
-func (s *Server) CreateUser(ctx context.Context, in *pb.CreateUserRequest) (*pb.EmptyResponse, error) {
-	username := in.Username
-	password := in.Password
-	name := in.Name
+func NewUserHandler(service service.UserService) *UserHandler {
+	return &UserHandler{service: service}
+}
 
-	err := service.CreateUser(username, password, name)
+func (h *UserHandler) CreateUser(ctx context.Context, req *pb.CreateUserRequest) (*pb.EmptyResponse, error) {
+	err := h.service.CreateUser(ctx, req.Username, req.Password, req.Name)
 	if err != nil {
-		return nil, err
+		return &pb.EmptyResponse{}, err
 	}
-
 	return &pb.EmptyResponse{}, nil
 }
 
-func (s *Server) Login(ctx context.Context, in *pb.LoginRequest) (*pb.LoginResponse, error) {
-	username := in.Username
-	password := in.Password
-
-	token, err := service.Login(username, password)
+func (h *UserHandler) Login(ctx context.Context, req *pb.LoginRequest) (*pb.LoginResponse, error) {
+	token, err := h.service.Login(ctx, req.Username, req.Password)
 	if err != nil {
 		return nil, err
 	}
-
+	
 	return &pb.LoginResponse{
 		Token: token,
 	}, nil
 }
 
-func (s *Server) GetUserByID(ctx context.Context, in *pb.IDRequest) (*pb.UserResponse, error) {
-	id := int(in.Id)
-
-	userInfo, err := service.GetUserByID(id)
+func (h *UserHandler) GetUserByID(ctx context.Context, req *pb.IDRequest) (*pb.UserResponse, error) {
+	user, err := h.service.GetUserByID(ctx, int(req.Id))
 	if err != nil {
 		return nil, err
 	}
-
 	return &pb.UserResponse{
-		Id: int32(userInfo["id"].(int)),
-		Username: userInfo["username"].(string),
-		Name: userInfo["name"].(string),
+		Id:       int32(user.ID),
+		Username: user.Username,
+		Name:     user.Name,
 	}, nil
 }
 
-func (s *Server) GetUserByName(ctx context.Context, in *pb.UsernameRequest) (*pb.UserResponse, error) {
-	username := in.Username
-
-	userInfo, err := service.GetUserByUsername(username)
+func (h *UserHandler) GetUserByUsername(ctx context.Context, req *pb.UsernameRequest) (*pb.UserResponse, error) {
+	user, err := h.service.GetUserByUsername(ctx, req.Username)
 	if err != nil {
 		return nil, err
 	}
-
 	return &pb.UserResponse{
-		Id: int32(userInfo["id"].(int)),
-		Username: userInfo["username"].(string),
-		Name: userInfo["name"].(string),
+		Id:       int32(user.ID),
+		Username: user.Username,
+		Name:     user.Name,
 	}, nil
 }
 
-func (s *Server) GetAllUsers(ctx context.Context, in *pb.EmptyRequest) (*pb.UserArrayResponse, error) {
-	userArray, err := service.GetAllUsers()
+func (h *UserHandler) GetAllUsers(ctx context.Context, req *pb.EmptyRequest) (*pb.UserArrayResponse, error) {
+	users, err := h.service.GetAllUsers(ctx)
 	if err != nil {
 		return nil, err
 	}
-
-	var users []*pb.UserResponse
-	for _, user := range userArray {
-		users = append(users, &pb.UserResponse{
-			Id: int32(user["id"].(int)),
-			Username: user["username"].(string),
-			Name: user["name"].(string),
+	var userResponses []*pb.UserResponse
+	for _, user := range users {
+		userResponses = append(userResponses, &pb.UserResponse{
+			Id:       int32(user.ID),
+			Username: user.Username,
+			Name:     user.Name,
 		})
 	}
-
-	return &pb.UserArrayResponse{
-		Users: users,
-	}, nil
+	return &pb.UserArrayResponse{Users: userResponses}, nil
 }
