@@ -19,19 +19,25 @@ func main() {
 
 	// Example usage of the client
 	// CreateUser
-// 	_, err = client.CreateUser(context.Background(), &pb.CreateUserRequest{
-// 		Username: "testuser",
-// 		Password: "password",
-// 		Name:     "Test User",
-// 	})
-// 	if err != nil {
-// 		panic(err)
-// 	}
+	_, err = client.CreateUser(context.Background(), &pb.CreateUserRequest{
+		Username: "testuser",
+		Password: "password",
+		Name:     "Test User",
+	})
+	if err != nil {
+		panic(err)
+	}
 
  	// Login
-	resp, err := client.Login(context.Background(), &pb.LoginRequest{
+	resp, _ := client.Login(context.Background(), &pb.LoginRequest{
 		Username: "testuser",
 		Password: "password",
 	})
 	fmt.Println(resp)
+
+	// Get all users
+	users, _ := client.GetAllUsers(context.Background(), &pb.EmptyRequest{})
+	for _, user := range users.Users {
+		fmt.Printf("User: %s, ID: %d\n", user.Username, user.Id)
+	}
 }

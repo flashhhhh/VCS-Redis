@@ -21,7 +21,7 @@ func main() {
 	}
 
 	// Initialize Redis client
-	redisAddr := env.GetEnv("REDIS_ADDR", "localhost:6379")
+	redisAddr := env.GetEnv("REDIS_ADDR", "redis:6379")
 	redisClient := redis.NewRedisClient(redisAddr)
 
 	// Initialize the repository, service, and handler

@@ -8,7 +8,7 @@ import (
 
 func main() {
 	// Initialize the user client
-	userClient := client.NewUserClient("localhost:50051")
+	userClient := client.NewUserClient("user_service:50051")
 
 	// Initialize the gateway handler
 	gatewayHandler := handler.NewGatewayHandler(userClient)
