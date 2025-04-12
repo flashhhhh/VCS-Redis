@@ -14,6 +14,8 @@ Redis hỗ trợ nhiều chiến lược cache để kiểm soát dữ liệu hi
 ### Cache-Aside
 Chiến lược này còn được gọi là lazy loading. Vùng nhớ cache (Redis) được chạy song song với database gốc, do đó ứng dụng có thể tương tác trực tiếp với cache và database.
 
+![Cache aside](images/cache-aside.png)
+
 #### Cách thức hoạt động:
 1. Application kiểm tra trong Redis xem có lưu trữ dữ liệu mình cần không.
 2. Khi cache không chứa dữ liệu mà application cần (cache miss), pplication sẽ xuống database để lấy dữ liệu.
@@ -31,6 +33,8 @@ Chiến lược này còn được gọi là lazy loading. Vùng nhớ cache (Re
 ### Read through
 Thay vì ứng dụng phải kết nối với cả cache và database, **Read Through** cho phép ứng dụng chỉ cần truy cập vào cache, còn lại là do cache xử lý.
 
+![Read through](images/read-through.png)
+
 #### Cách thức hoạt động:
 1. Ứng dụng gửi request đến cache để lấy dữ liệu
 2. Nếu cache hit, cache sẽ gửi dữ liệu ngay lập tức cho ứng dụng.
@@ -47,6 +51,8 @@ Thay vì ứng dụng phải kết nối với cả cache và database, **Read T
 
 ### Write-through cache
 Khi ứng dụng cần ghi dữ liệu, thay vì ghi dữ liệu vào database, nó sẽ ghi vào cache trước và cache sẽ ghi vào database sau. Đây là cách ghi dữ liệu **đồng bộ (synchronously)**.
+
+![write through](images/write-through.png)
 
 #### Cách thức hoạt động
 Khi một request write tới:
@@ -66,6 +72,8 @@ Khi một request write tới:
 ### Write back
 Thay vì cache ghi dữ liệu trực tiếp vào database khi nhận được request, cache sẽ đồng bộ dữ liệu xuống database định kì theo thời gian, hoặc theo số lượng dữ liệu được insert/update. Đây là cách ghi dữ liệu **bất đồng bộ (asynchronously)**.
 
+![Write back](images/write-back.png)
+
 #### Cách thức hoạt động
 1. Dữ liệu sẽ được lưu vào cache
 2. Sau một khoảng thời gian, cache sẽ ghi dữ liệu vào database.
@@ -79,6 +87,9 @@ Thay vì cache ghi dữ liệu trực tiếp vào database khi nhận được r
 2. Nếu cache sập thì ứng dụng cũng sập và sẽ bị mất toàn bộ dữ liệu chưa kịp đồng bộ vào database.
 
 ### Write around
+
+![Write around](images/write-around.png)
+
 #### Cách thức hoạt động
 1. Dữ liệu chỉ được ghi vào database.
 2. Khi ứng dụng muốn đọc dữ liệu, đầu tiên sẽ đọc ở cache. Nếu cache hit thì trả dữ liệu về.
