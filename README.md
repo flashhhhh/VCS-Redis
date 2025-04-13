@@ -258,7 +258,48 @@ Do khi Bloom Filter trả lời sai thì cũng không ảnh hưởng nhiều (v�
 * O(K) cho thao tác chèn, với K là số hàm hash.
 * O(K * N) cho thao tác kiểm tra, với N là số Bloom Filters.
 
-### Streams (XADD, XREAD, XGROUP)
+### Streams
+Redis Stream là cấu trúc dữ liệu của Redis dùng để xử lý luồng dữ liệu thời gian thực, chỉ có thể thêm dữ liệu vào cuối (**append-only**) mà không thể xóa hay chỉnh sửa dữ liệu cũ.
+
+#### Publish đến 1 stream
+Để thêm phần tử mới vào stream, sử dụng lệnh **XADD**. Lệnh này sẽ thêm một phần tử chứa các cặp key-value vào stream được chỉ định. Redis sẽ trả về ID có thể được sử dụng sau này để tham chiếu đến giá trị đó.
+```redis
+XADD mystream * sensor-id 123 temperature 26
+# 1744554483786-0
+```
+#### Consume từ 1 stream
+Một consumer trong Redis sẽ đọc dữ liệu từ stream và xử lý chúng. Có thể có nhiều consumers đọc từ stream đồng thời để song song hóa việc xử lý dữ liệu.
+```redis
+XREAD COUNT 10 BLOCK 3000 STREAMS mystream 0-0
+```
+
+Để lấy tin nhắn gần nhắt được publish đến sau lệnh XREAD, ta thay 0-0 thành $.
+```redis
+XREAD COUNT 10 BLOCK 0 STREAMS mystream $
+```
+
+#### Consumer Group
+Consumer groups là một tập hợp consumers để nhận tin nhắn, trong đó mỗi tin nhắn trong consumer chỉ được consume bởi duy nhất 1 consumer.
+```redis
+XGROUP CREATE mystream group_consumer 	# Tạo consumer group bát đầu từ tin nhắn kế tiếp
+XGROUP CREATE mystream group_consumer 0	# Tạo consumer group bát đầu từ tin nhắn đầu tiên
+```
+#### Đọc từ một Consumer Group
+Tạo một consumer mới để đọc stream.
+```redis
+XREADGROUP GROUP group_consumer consumer1 STREAMS my_stream >	# Đọc tin nhắn chưa được consume bởi bất kỳ consumer nào trong group
+```
+
+#### Acknowledge một tin nhắn
+Khi tin nhắn được xử lý thành công từ một consumer thì phải cần được acknowledge. Lệnh **XACK** xóa tin nhắn khỏi danh sách tin nhắn đang được PENDING, thông báo rằng tin nhắn được xử lý thành công và không cần phải gửi lại.
+```redis
+XACK mystream group_consumer ''message_id''
+```
+
+#### Thông báo tin nhắn không được xử lý thành công
+Nếu 1 consumer không acknowledge tin nhắn trong 1 khoảng thời gian, tin nhắn đó vẫn sẽ nằm trong danh sách PENDING. Khi đó ta có thể thông báo để consumer khác có thể nhận tin nhắn đó.
+* **XPENDING**: Kiểm tra có những tin nhắn nào vẫn đang bị Pending.
+* **XCLAIM**: Đổi consumer xử lý tin nhắn chỉ định khi thời gian PENDING quá bao lâu.
 
 ## Transaction
 Transaction là cách để gộp các command thành 1 khối command duy nhất, được xử lý tách biệt.
@@ -292,3 +333,8 @@ INCR user:1:points
 EXEC
 # OK
 ```
+
+## Redis Persistence
+Redis hỗ trợ 2 lựa chọn để lưu lại dữ liệu vĩnh cửu là **Redis Database (RDB)** và **Append-Only File (AOF)**.
+### RDB
+### AOF
