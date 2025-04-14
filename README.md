@@ -258,49 +258,6 @@ Do khi Bloom Filter trả lời sai thì cũng không ảnh hưởng nhiều (v�
 * O(K) cho thao tác chèn, với K là số hàm hash.
 * O(K * N) cho thao tác kiểm tra, với N là số Bloom Filters.
 
-### Streams
-Redis Stream là cấu trúc dữ liệu của Redis dùng để xử lý luồng dữ liệu thời gian thực, chỉ có thể thêm dữ liệu vào cuối (**append-only**) mà không thể xóa hay chỉnh sửa dữ liệu cũ.
-
-#### Publish đến 1 stream
-Để thêm phần tử mới vào stream, sử dụng lệnh **XADD**. Lệnh này sẽ thêm một phần tử chứa các cặp key-value vào stream được chỉ định. Redis sẽ trả về ID có thể được sử dụng sau này để tham chiếu đến giá trị đó.
-```redis
-XADD mystream * sensor-id 123 temperature 26
-# 1744554483786-0
-```
-#### Consume từ 1 stream
-Một consumer trong Redis sẽ đọc dữ liệu từ stream và xử lý chúng. Có thể có nhiều consumers đọc từ stream đồng thời để song song hóa việc xử lý dữ liệu.
-```redis
-XREAD COUNT 10 BLOCK 3000 STREAMS mystream 0-0
-```
-
-Để lấy tin nhắn gần nhắt được publish đến sau lệnh XREAD, ta thay 0-0 thành $.
-```redis
-XREAD COUNT 10 BLOCK 0 STREAMS mystream $
-```
-
-#### Consumer Group
-Consumer groups là một tập hợp consumers để nhận tin nhắn, trong đó mỗi tin nhắn trong consumer chỉ được consume bởi duy nhất 1 consumer.
-```redis
-XGROUP CREATE mystream group_consumer 	# Tạo consumer group bát đầu từ tin nhắn kế tiếp
-XGROUP CREATE mystream group_consumer 0	# Tạo consumer group bát đầu từ tin nhắn đầu tiên
-```
-#### Đọc từ một Consumer Group
-Tạo một consumer mới để đọc stream.
-```redis
-XREADGROUP GROUP group_consumer consumer1 STREAMS my_stream >	# Đọc tin nhắn chưa được consume bởi bất kỳ consumer nào trong group
-```
-
-#### Acknowledge một tin nhắn
-Khi tin nhắn được xử lý thành công từ một consumer thì phải cần được acknowledge. Lệnh **XACK** xóa tin nhắn khỏi danh sách tin nhắn đang được PENDING, thông báo rằng tin nhắn được xử lý thành công và không cần phải gửi lại.
-```redis
-XACK mystream group_consumer ''message_id''
-```
-
-#### Thông báo tin nhắn không được xử lý thành công
-Nếu 1 consumer không acknowledge tin nhắn trong 1 khoảng thời gian, tin nhắn đó vẫn sẽ nằm trong danh sách PENDING. Khi đó ta có thể thông báo để consumer khác có thể nhận tin nhắn đó.
-* **XPENDING**: Kiểm tra có những tin nhắn nào vẫn đang bị Pending.
-* **XCLAIM**: Đổi consumer xử lý tin nhắn chỉ định khi thời gian PENDING quá bao lâu.
-
 ## Transaction
 Transaction là cách để gộp các command thành 1 khối command duy nhất, được xử lý tách biệt.
 
@@ -334,7 +291,94 @@ EXEC
 # OK
 ```
 
+## Redis Stream
+Redis Stream là cấu trúc dữ liệu của Redis dùng để xử lý luồng dữ liệu thời gian thực, chỉ có thể thêm dữ liệu vào cuối (**append-only**) mà không thể xóa hay chỉnh sửa dữ liệu cũ.
+
+### Publish đến 1 stream
+Để thêm phần tử mới vào stream, sử dụng lệnh **XADD**. Lệnh này sẽ thêm một phần tử chứa các cặp key-value vào stream được chỉ định. Redis sẽ trả về ID có thể được sử dụng sau này để tham chiếu đến giá trị đó.
+```redis
+XADD mystream * sensor-id 123 temperature 26
+# 1744554483786-0
+```
+### Consume từ 1 stream
+Một consumer trong Redis sẽ đọc dữ liệu từ stream và xử lý chúng. Có thể có nhiều consumers đọc từ stream đồng thời để song song hóa việc xử lý dữ liệu.
+```redis
+XREAD COUNT 10 BLOCK 3000 STREAMS mystream 0-0
+```
+
+Để lấy tin nhắn gần nhắt được publish đến sau lệnh XREAD, ta thay 0-0 thành $.
+```redis
+XREAD COUNT 10 BLOCK 0 STREAMS mystream $
+```
+
+### Consumer Group
+Consumer groups là một tập hợp consumers để nhận tin nhắn, trong đó mỗi tin nhắn trong consumer chỉ được consume bởi duy nhất 1 consumer.
+```redis
+XGROUP CREATE mystream group_consumer 	# Tạo consumer group bát đầu từ tin nhắn kế tiếp
+XGROUP CREATE mystream group_consumer 0	# Tạo consumer group bát đầu từ tin nhắn đầu tiên
+```
+### Đọc từ một Consumer Group
+Tạo một consumer mới để đọc stream.
+```redis
+XREADGROUP GROUP group_consumer consumer1 STREAMS my_stream >	# Đọc tin nhắn chưa được consume bởi bất kỳ consumer nào trong group
+```
+
+### Acknowledge một tin nhắn
+Khi tin nhắn được xử lý thành công từ một consumer thì phải cần được acknowledge. Lệnh **XACK** xóa tin nhắn khỏi danh sách tin nhắn đang được PENDING, thông báo rằng tin nhắn được xử lý thành công và không cần phải gửi lại.
+```redis
+XACK mystream group_consumer ''message_id''
+```
+
+### Thông báo tin nhắn không được xử lý thành công
+Nếu 1 consumer không acknowledge tin nhắn trong 1 khoảng thời gian, tin nhắn đó vẫn sẽ nằm trong danh sách PENDING. Khi đó ta có thể thông báo để consumer khác có thể nhận tin nhắn đó.
+* **XPENDING**: Kiểm tra có những tin nhắn nào vẫn đang bị Pending.
+* **XCLAIM**: Đổi consumer xử lý tin nhắn chỉ định khi thời gian PENDING quá bao lâu.
+
+## Redis Pub/Sub
+Redis Pub/Sub là 1 message queue cho phép các tin nhắn có thể được fan-out đến nhiều subscribers.
+
+Tính chất:
+* Là 1 cách liên lạc đồng bộ. Tức là khi 1 subscriber mất kết nối rồi sau đó khôi phục lại được, toàn bộ tin nhắn trong thời điểm đó sẽ bị mất.
+* Publisher chỉ gửi tin nhắn đi, không quan tâm đến việc tin nhắn đó có được nhận không.
+* Chỉ có thể Fan-out, hay tức là không tồn tại Group để cân bằng tải.
+
+Command:
+* **PUBLISH 'channel' 'message'**: Gửi tin nhắn message đến channel.
+* **SUBSCRIBE 'channel' **: Subscribe channel. Toàn bộ tin nhắn được gửi đến sau đó đều được gửi về client này.
+
 ## Redis Persistence
 Redis hỗ trợ 2 lựa chọn để lưu lại dữ liệu vĩnh cửu là **Redis Database (RDB)** và **Append-Only File (AOF)**.
 ### RDB
+RDB là 1 cách để Redis lưu dữ liệu vào ổ đĩa thông qua Snapshots. Khi Redis bị sập, có thể dùng file snapshot này để khôi phục dữ liệu.
+
+Redis tạo snapshot bằng cách tạo ra 1 process mới, sau đó process này sẽ snapshot lại dữ liệu hiện tại của Redis. Sau đó, tiến trình này sẽ tạo ra file **dump.rdb** thay thế file snapshot cũ.
+
+Ưu điểm:
+* **RDB không ảnh hưởng đến hiệu năng**: Do tạo ra 1 process để lưu snapshot, hiệu năng của process chính không bị ảnh hưởng.
+* **Khởi tạo lại Redis nhanh chóng hơn**: Snapshot là kết quả của một chuỗi thao tác, do đó sẽ nhanh hơn nhiều khi thực hiện từng thao tác một.
+* **Backup file**: Backup file này khá nhỏ nên có thể chuyển sang cho Redis server khác.
+
+Nhược điểm:
+* **Có thể mất dữ liệu**: Có thể mất dữ liệu trong khoảng thời điểm sau snapshot gần nhất.
+
+Redis mặc định hỗ trợ khả năng tự động snapshot. Ta có thể xem thông tin hoặc chỉnh sửa tần suất snapshot thông qua **CONFIG GET save** hoặc **CONFIG SET save "info"**.
+
+Nếu muốn tạo snapshot thủ công, Redis cung cấp 2 hàm:
+* **SAVE**: Snapshot đồng bộ. Toàn bộ client sẽ bị tạm dừng để Redis lưu thông tin vào ổ đĩa.
+* **BGSAVE**: Snapshot bất đồng bộ. Client vẫn sẽ chạy bình thường trong khi Redis lưu thông tin.
+
 ### AOF
+Append-Only File là một cách khác để Redis lưu dữ liệu, thông qua việc ghi log mỗi thao tác vào 1 file log. Có thể sử dụng file log để khôi phục lại dữ liệu.
+
+Khi redis thực hiện xong 1 command, nó sẽ lưu lại command vào cuối buffer **aof_buf**. Việc flush buffer sẽ phụ thuộc vào config của **appendfsync**, có thể là:
+* **alway**: an toàn nhất, nhưng có hiệu năng thấp.
+* **everysec**: an toàn và hiệu năng tốt hơn.
+* **no**: Tùy thuộc vào OS, có hiệu năng cao nhất, tuy nhiên sẽ không an toàn.
+
+Ưu điêm:
+* **Bền bỉ**: Do toàn bộ thay đổi đều được lưu vào file, khó có khả năng xảy ra mất mát dữ liệu.
+* **Đáng tin cậy**: Kể cả khi có 1 command không hoàn chỉnh do vấn đề ổ đĩa, redis-check-aof vẫn có khả năng khôi phục lại nhanh chóng.
+
+Nhược điểm:
+* **Kích thước file**: Kích thước file của AOF thường lớn hơn rất nhiều so với RDB.
+* **Hiệu năng**: AOF thường sẽ có hiệu năng kém hơn RDB.
