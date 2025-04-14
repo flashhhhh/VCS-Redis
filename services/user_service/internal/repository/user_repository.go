@@ -1,75 +1,100 @@
 package repository
 
-import "gorm.io/gorm"
+import (
+	"context"
+	"encoding/json"
+	"strconv"
+	"user_service/internal/domain"
 
-type User struct {
-	ID       int    `json:"id"`
-	Username string `json:"username"`
-	Password string `json:"password"`
-	Name     string `json:"name"`
+	"github.com/redis/go-redis/v9"
+	"gorm.io/gorm"
+)
+
+type UserRepository interface {
+	CreateUser(ctx context.Context, user *domain.User) error
+	Login(ctx context.Context, username string) (*domain.User, error)
+	GetUserByID(ctx context.Context, id int) (*domain.User, error)
+	GetAllUsers(ctx context.Context) ([]*domain.User, error)
 }
 
-type UserRepository struct {
+type userRepository struct {
 	db *gorm.DB
+	redis *redis.Client
 }
 
-func NewUserRepository() *UserRepository {
-	return &UserRepository{
-		db: NewPostgresConnection(),
+func NewUserRepository(db *gorm.DB, redis *redis.Client) UserRepository {
+	return &userRepository{
+		db:    db,
+		redis: redis,
 	}
 }
 
-func (r *UserRepository) CreateUser(username, password, name string) error {
-	user := User{
-		Username: username,
-		Password: password,
-		Name:     name,
+func (r *userRepository) CreateUser(ctx context.Context, user *domain.User) error {
+	err := r.db.Create(user).Error
+
+	if err != nil {
+		return err
 	}
 
-	// Create user in database
-	result := r.db.Create(&user)
-	return result.Error
+	// Cache the user in Redis
+	userData, err := json.Marshal(user)
+	if err != nil {
+		return err
+	}
+
+	err = r.redis.Set(ctx, "user:"+strconv.Itoa(user.ID), userData, 0).Err()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
-func (r *UserRepository) Login(username string) (User, error) {
-	user := User{}
-	result := r.db.Where("username = ?", username).First(&user)
-
-	if result.Error != nil {
-		return User{}, result.Error
+func (r *userRepository) Login(ctx context.Context, username string) (*domain.User, error) {
+	var user domain.User
+	err := r.db.Where("username = ?", username).First(&user).Error
+	if err != nil {
+		return nil, err
 	}
-
-	return user, nil
+	return &user, nil
 }
 
-func (r *UserRepository) GetUserByID(id int) (User, error) {
-	user := User{}
-	result := r.db.First(&user, id)
+func (r *userRepository) GetUserByID(ctx context.Context, id int) (*domain.User, error) {
+	var user domain.User
 
-	if result.Error != nil {
-		return User{}, result.Error
+	// Check Redis cache first
+	cachedUser, err := r.redis.Get(ctx, "user:"+strconv.Itoa(id)).Result()
+	if err == nil {
+		// User found in cache, unmarshal it
+		err = json.Unmarshal([]byte(cachedUser), &user)
+		if err == nil {
+			return &user, nil
+		}
 	}
 
-	return user, nil
+	// If not found in cache, query the database
+	err = r.db.First(&user, id).Error
+	if err != nil {
+		return nil, err
+	}
+
+	// Cache the user in Redis
+	userData, err := json.Marshal(user)
+	if err != nil {
+		return nil, err
+	}
+	err = r.redis.Set(ctx, "user:"+strconv.Itoa(id), userData, 0).Err()
+	if err != nil {
+		return nil, err
+	}
+	return &user, nil
 }
 
-func (r *UserRepository) GetUserByUsername(username string) (User, error) {
-	user := User{}
-	result := r.db.Where("username = ?", username).First(&user)
-
-	if result.Error != nil {
-		return User{}, result.Error
+func (r *userRepository) GetAllUsers(ctx context.Context) ([]*domain.User, error) {
+	var users []*domain.User
+	err := r.db.Find(&users).Error
+	if err != nil {
+		return nil, err
 	}
-
-	return user, nil
-}
-
-func (r *UserRepository) GetAllUsers() ([]User, error) {
-	users := []User{}
-	result := r.db.Find(&users)
-	if result.Error != nil {
-		return nil, result.Error
-	}
-
 	return users, nil
 }

@@ -1,0 +1,33 @@
+services:
+  postgres:
+    image: postgres:latest
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 12345678
+      POSTGRES_DB: user_db
+    networks:
+      - user_network
+  
+  redis:
+    image: redis:latest
+    networks:
+      - user_network
+  
+  user_service:
+    build:
+      context: ../..
+      dockerfile: deployments/docker/Dockerfile
+    # logging:
+    #     driver: journald
+    #     options:
+    #         tag: mytag
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - user_network
+
+networks:
+  user_network:
+    driver: bridge
+    name: user_network

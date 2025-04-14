@@ -1,77 +1,81 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"time"
+	"user_service/internal/domain"
 	"user_service/internal/repository"
 
 	"github.com/flashhhhh/pkg/hash"
 	"github.com/flashhhhh/pkg/jwt"
 )
 
-var UserRepository = repository.NewUserRepository()
-
-func CreateUser(username, password, name string) error {
-	return UserRepository.CreateUser(username, password, name)
+type UserService interface {
+	CreateUser(ctx context.Context, username, password, name string) error
+	Login(ctx context.Context, username, password string) (string, error)
+	GetUserByID(ctx context.Context, id int) (*domain.User, error)
+	GetAllUsers(ctx context.Context) ([]*domain.User, error)
 }
 
-func Login(username, password string) (string, error) {
-	userInfo, err := UserRepository.Login(username)
-	if err != nil {
-		return "", errors.New("user not found")
+type userService struct {
+	repo repository.UserRepository
+}
+
+func NewUserService(repo repository.UserRepository) UserService {
+	return &userService{
+		repo: repo,
+	}
+}
+
+func (s *userService) CreateUser(ctx context.Context, username, password, name string) error {
+	user := &domain.User{
+		Username: username,
+		Password: hash.HashString(password),
+		Name:     name,
 	}
 
-	if !hash.CompareHashAndString(userInfo.Password, password) {
+	err := s.repo.CreateUser(ctx, user)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *userService) Login(ctx context.Context, username, password string) (string, error) {
+	user, err := s.repo.Login(ctx, username)
+	if err != nil {
+		return "", err
+	}
+
+	if !hash.CompareHashAndString(user.Password, password) {
 		return "", errors.New("invalid password")
 	}
 
-	token, _ := jwt.GenerateToken(map[string]any{
-		"id": userInfo.ID,
-	}, time.Minute * 5)
-
-	return token, nil
-}
-
-func GetUserByID(id int) (map[string]any, error) {
-	user, err := UserRepository.GetUserByID(id)
-	if err != nil {
-		return nil, err
-	}
-
-	return map[string]any{
+	token, jwtErr := jwt.GenerateToken(map[string]any{
 		"id": user.ID,
 		"username": user.Username,
 		"name": user.Name,
-	}, nil
+	}, time.Hour)
+
+	return token, jwtErr
 }
 
-func GetUserByUsername(username string) (map[string]any, error) {
-	user, err := UserRepository.GetUserByUsername(username)
+func (s *userService) GetUserByID(ctx context.Context, id int) (*domain.User, error) {
+	user, err := s.repo.GetUserByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
 
-	return map[string]any{
-		"id": user.ID,
-		"username": user.Username,
-		"name": user.Name,
-	}, nil
+	return user, nil
 }
 
-func GetAllUsers() ([]map[string]any, error) {
-	users, err := UserRepository.GetAllUsers()
+func (s *userService) GetAllUsers(ctx context.Context) ([]*domain.User, error) {
+	users, err := s.repo.GetAllUsers(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	var userArray []map[string]any
-	for _, user := range users {
-		userArray = append(userArray, map[string]any{
-			"id": user.ID,
-			"username": user.Username,
-			"name": user.Name,
-		})
-	}
-
-	return userArray, nil
+	return users, nil
 }

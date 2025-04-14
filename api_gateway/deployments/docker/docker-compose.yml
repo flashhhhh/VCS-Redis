@@ -1,0 +1,22 @@
+services:
+  api_service:
+    build:
+      context: ../..
+      dockerfile: deployments/docker/Dockerfile
+    ports:
+      - "1906:1906"
+    # logging:
+    #   driver: journald
+    #   options:
+    #       tag: mytag
+    networks:
+      - api_gateway_network
+      - user_network
+
+networks:
+  user_network:
+    external: true
+    name: user_network
+  api_gateway_network:
+    driver: bridge
+    name: api_gateway_network

@@ -1,93 +1,73 @@
-/*
-	This is a simple client to test the user service.
-*/
-
 package main
 
 import (
 	"context"
-	"fmt"
-	pb "user_service/pb"
+	"log"
+	"user_service/pb"
 
 	"github.com/flashhhhh/pkg/env"
 	"google.golang.org/grpc"
 )
 
 func main() {
-	conn, err := grpc.Dial("localhost" + env.GetEnv("USER_PORT", ":50051"), grpc.WithInsecure())
+	// Connect to the gRPC server
+	grpcServerAddress := env.GetEnv("USER_SERVER_HOST", "localhost") + ":" + env.GetEnv("USER_SERVER_PORT", "50051")
+
+	conn, err := grpc.Dial(grpcServerAddress, grpc.WithInsecure())
 	if err != nil {
 		panic(err)
 	}
-	defer conn.Close()
 
+	defer conn.Close()
 	client := pb.NewUserServiceClient(conn)
 
-	ctx := context.Background()
-
+	// Example usage of the client
+	
 	/*
-		Test GetUserByID
+		Create a user
 	*/
-	// req := &pb.IDRequest{
-	// 	Id: 4,
-	// }
-
-	// res, err := client.GetUserByID(ctx, req)
+	// _, err = client.CreateUser(context.Background(), &pb.CreateUserRequest{
+	// 	Username: "testuser2",
+	// 	Password: "password",
+	// 	Name:     "Test User 2",
+	// })
 	// if err != nil {
 	// 	panic(err)
 	// }
-
-	// fmt.Println("User ID:", res.Id)
-	// fmt.Println("Username:", res.Username)
-	// fmt.Println("Name:", res.Name)
-
-
-
-
-
+	// log.Println("User created successfully!")
 
 	/*
-		------------------------------------------------------------------------
-	*
-
-	/*
-		Test Login
+		Log in a user
 	*/
+	// token, err := client.Login(context.Background(), &pb.LoginRequest{
+	// 	Username: "testuser2",
+	// 	Password: "password",
+	// })
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// log.Println("Login successful! Token:", token.Token)
 
-	res, err := client.Login(ctx, &pb.LoginRequest{
-		Username: "admin",
-		Password: "admin",
-	})
+	/*
+		Get user by ID
+	*/
+	// user, err := client.GetUserByID(context.Background(), &pb.GetUserByIDRequest{
+	// 	Id: 1,
+	// })
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// log.Println("User details:", user)
 
+	/*
+		Get all users
+	*/
+	users, err := client.GetAllUsers(context.Background(), &pb.EmptyRequest{})
 	if err != nil {
 		panic(err)
 	}
-
-	fmt.Println("Token:", res.Token)
-
-
-
-
-
-
-
-	/*
-		------------------------------------------------------------------------
-	*/
-
-	/*
-		Test GetAllUsers
-	*/
-	// req := &pb.EmptyRequest{}
-
-	// res, err := client.GetAllUsers(ctx, req)
-	// if err != nil {
-	// 	panic(err)
-	// }
-
-	// for _, user := range res.Users {
-	// 	fmt.Println("User ID:", user.Id)
-	// 	fmt.Println("Username:", user.Username)
-	// 	fmt.Println("Name:", user.Name)
-	// 	fmt.Println()
-	// }
+	log.Println("All users:")
+	for _, user := range users.Users {
+		log.Printf("ID: %d, Username: %s, Name: %s\n", user.Id, user.Username, user.Name)
+	}
 }
